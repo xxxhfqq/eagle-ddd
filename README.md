@@ -2,13 +2,13 @@
 
 这个仓库用于完成 USTC ML System final project 中的 EAGLE / EAGLE-2 推理优化实验。
 
-核心目标：在官方 `SafeAILab/EAGLE` 的基础上，加入 **DDD（Dynamic Depth Decoding，动态深度解码）**，比较：
+核心目标：在官方 `SafeAILab/EAGLE` 的基础上，保留 **DDD（Dynamic Depth Decoding，动态深度解码）** 的实验思路，比较：
 
 1. AR（Autoregressive，自回归推理）
 2. 原始 EAGLE 推理
 3. EAGLE + DDD 推理
 
-本仓库不保存大模型权重，只保存实验脚手架、补丁脚本、benchmark 脚本和报告材料。
+本仓库不保存大模型权重，只保存实验脚手架、benchmark 脚本、报告材料和手动修改说明。
 
 ---
 
@@ -19,10 +19,10 @@
 ├── environment.yml                  # Conda 环境模板
 ├── requirements-extra.txt           # 额外 Python 依赖
 ├── scripts/                         # 一键脚本
-├── patches/                         # 自动修改 EAGLE 源码的补丁脚本
+├── patches/                         # 旧版自动补丁脚本，仅保留作参考，不作为默认流程
 ├── experiments/                     # smoke test、benchmark、统计、画图
 ├── configs/                         # 模型路径配置模板
-├── docs/                            # 实验计划和报告大纲
+├── docs/                            # 实验计划、报告大纲、手动 DDD 修改说明
 └── results/                         # 运行结果，默认不提交大文件
 ```
 
@@ -40,10 +40,14 @@
 
 ## 1. 克隆仓库
 
+大陆网络建议使用公开库加速地址：
+
 ```bash
-git clone https://github.com/xxxhfqq/eagle-ddd.git
+git clone https://gh-proxy.com/https://github.com/xxxhfqq/eagle-ddd.git
 cd eagle-ddd
 ```
+
+如果你的网络可以直接访问 GitHub，也可以使用原地址。
 
 ---
 
@@ -53,10 +57,22 @@ cd eagle-ddd
 bash scripts/00_clone_eagle.sh
 ```
 
+脚本默认使用公开库加速地址：
+
+```text
+https://gh-proxy.com/https://github.com/SafeAILab/EAGLE.git
+```
+
 这会把官方 EAGLE 仓库放到：
 
 ```text
 third_party/EAGLE
+```
+
+如果你要临时切换地址，可以覆盖 `EAGLE_REPO_URL`：
+
+```bash
+EAGLE_REPO_URL=https://gh-proxy.com/https://github.com/SafeAILab/EAGLE.git bash scripts/00_clone_eagle.sh
 ```
 
 ---
@@ -76,7 +92,7 @@ conda activate eagle_ddd
 
 ## 4. 先安装 PyTorch
 
-EAGLE 官方安装依赖里可能写死 `torch==2.0.1`，但国内 PyPI 镜像不一定有这个版本。因此本项目推荐：**先手动安装 PyTorch，再用 `--no-deps` 安装 EAGLE 本体**。
+EAGLE 官方安装依赖里可能写死 `torch==2.0.1`，但服务器 CUDA 和国内 PyPI 镜像不一定匹配。因此本项目推荐：**先手动安装 PyTorch，再用 `--no-deps` 安装 EAGLE 本体**。
 
 如果服务器是 CUDA 12.1 附近，可以先试：
 
@@ -105,7 +121,7 @@ PY
 bash scripts/01_setup_env.sh
 ```
 
-这个脚本现在会执行类似：
+这个脚本会执行类似：
 
 ```bash
 python -m pip install numpy pandas matplotlib pyyaml tqdm sentencepiece protobuf accelerate transformers safetensors huggingface-hub
@@ -116,31 +132,34 @@ python -m pip install --no-deps -e third_party/EAGLE
 
 ---
 
-## 6. 应用 DDD 补丁
+## 6. 手动加入 DDD 修改
+
+默认流程已经**不再使用自动补丁脚本**。
+
+不要运行：
 
 ```bash
 bash scripts/02_apply_ddd_patch.sh
 ```
 
-这个脚本会自动修改：
+这个脚本现在只会打印提示，不会修改源码。旧的 `patches/apply_ddd_patch.py` 仅保留作参考，不作为默认流程。
+
+新的推荐方式是：在干净的 `third_party/EAGLE` 上，按照下面文档手动修改：
 
 ```text
-third_party/EAGLE/eagle/model/ea_model.py
-third_party/EAGLE/eagle/model/cnets.py
-third_party/EAGLE/eagle/model/cnets1.py
+docs/manual_ddd_changes.md
 ```
 
-它会加入：
+手动修改的核心思想仍然是：
 
 ```text
-enable_ddd
-ddd_max_depth
-ddd_check_depths
-ddd_threshold
-ddd_depth_history
+1. 不改 target model。
+2. 不改 verifier 的接受 / 拒绝逻辑。
+3. 只在 drafter 的 tree expansion 阶段加入动态深度早停。
+4. 通过 enable_ddd 开关控制是否启用 DDD。
 ```
 
-注意：补丁脚本会保留 `.bak` 备份文件。如果看到 `[warn]`，说明官方 EAGLE 源码和补丁脚本匹配不完全，需要根据日志继续调整。
+这样可以保留 DDD 的实验思路，同时避免字符串补丁误伤源码。
 
 ---
 
@@ -149,7 +168,7 @@ ddd_depth_history
 先复制配置模板：
 
 ```bash
-cp configs/vicuna7b_eagle.yaml configs/local.yaml
+cp configs/qwen2_7b_eagle.yaml configs/local.yaml
 ```
 
 然后编辑：
@@ -158,18 +177,14 @@ cp configs/vicuna7b_eagle.yaml configs/local.yaml
 vim configs/local.yaml
 ```
 
-把下面两个路径改成你服务器上的真实路径：
+如果模型放在当前项目目录，可以写成：
 
 ```yaml
-base_model_path: /workspace/models/vicuna-7b-v1.3
-ea_model_path: /workspace/models/EAGLE-Vicuna-7B-v1.3
+base_model_path: ./models/Qwen2-7B-Instruct
+ea_model_path: ./models/EAGLE-Qwen2-7B-Instruct
 ```
 
-如果你用 Qwen2，可以改用：
-
-```bash
-cp configs/qwen2_7b_eagle.yaml configs/local.yaml
-```
+如果模型放在其他目录，就把路径改成真实路径。
 
 ---
 
@@ -207,6 +222,8 @@ eagle_ddd, threshold=0.0
 ```text
 results/*.jsonl
 ```
+
+注意：`eagle_ddd` 需要你已经按 `docs/manual_ddd_changes.md` 手动加入 DDD 代码。否则只跑 AR 和原始 EAGLE。
 
 ---
 

@@ -16,7 +16,7 @@
 
 ```text
 .
-├── environment.yml                  # Conda 环境
+├── environment.yml                  # Conda 环境模板
 ├── requirements-extra.txt           # 额外 Python 依赖
 ├── scripts/                         # 一键脚本
 ├── patches/                         # 自动修改 EAGLE 源码的补丁脚本
@@ -61,23 +61,62 @@ third_party/EAGLE
 
 ---
 
-## 3. 创建环境
+## 3. 创建独立环境
+
+不要在 `base` 环境里安装。建议新建一个专门环境：
 
 ```bash
-bash scripts/01_setup_env.sh
+conda create -n eagle_ddd python=3.10 -y
 conda activate eagle_ddd
 ```
 
-如果服务器 PyTorch / CUDA 版本冲突，优先按照服务器已有 CUDA 版本单独安装 PyTorch，然后再执行：
-
-```bash
-pip install -e third_party/EAGLE
-pip install -r requirements-extra.txt
-```
+如果你已经在 `base` 里失败过，问题不大，后面只要切到 `eagle_ddd` 环境重新装即可。
 
 ---
 
-## 4. 应用 DDD 补丁
+## 4. 先安装 PyTorch
+
+EAGLE 官方安装依赖里可能写死 `torch==2.0.1`，但国内 PyPI 镜像不一定有这个版本。因此本项目推荐：**先手动安装 PyTorch，再用 `--no-deps` 安装 EAGLE 本体**。
+
+如果服务器是 CUDA 12.1 附近，可以先试：
+
+```bash
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+```
+
+如果你的服务器已经有合适的 PyTorch，也可以先检查：
+
+```bash
+python - <<'PY'
+import torch
+print('torch:', torch.__version__)
+print('cuda available:', torch.cuda.is_available())
+print('cuda:', torch.version.cuda)
+PY
+```
+
+只要 `cuda available: True`，就可以继续下一步。
+
+---
+
+## 5. 安装项目依赖和 EAGLE 本体
+
+```bash
+bash scripts/01_setup_env.sh
+```
+
+这个脚本现在会执行类似：
+
+```bash
+python -m pip install numpy pandas matplotlib pyyaml tqdm sentencepiece protobuf accelerate transformers safetensors huggingface-hub
+python -m pip install --no-deps -e third_party/EAGLE
+```
+
+其中 `--no-deps` 表示 **no dependencies，不安装依赖**。这样可以避免 EAGLE 强行安装固定版本的 `torch==2.0.1`，也避免污染当前环境。
+
+---
+
+## 6. 应用 DDD 补丁
 
 ```bash
 bash scripts/02_apply_ddd_patch.sh
@@ -101,11 +140,11 @@ ddd_threshold
 ddd_depth_history
 ```
 
-注意：补丁脚本会保留 `.bak` 备份文件。
+注意：补丁脚本会保留 `.bak` 备份文件。如果看到 `[warn]`，说明官方 EAGLE 源码和补丁脚本匹配不完全，需要根据日志继续调整。
 
 ---
 
-## 5. 设置模型路径
+## 7. 设置模型路径
 
 先复制配置模板：
 
@@ -134,7 +173,7 @@ cp configs/qwen2_7b_eagle.yaml configs/local.yaml
 
 ---
 
-## 6. 跑 smoke test
+## 8. 跑 smoke test
 
 先只生成一个样例，确认模型能加载、能生成：
 
@@ -146,7 +185,7 @@ bash scripts/03_run_smoke_test.sh
 
 ---
 
-## 7. 跑正式实验
+## 9. 跑正式实验
 
 ```bash
 bash scripts/04_run_benchmark.sh
@@ -171,7 +210,7 @@ results/*.jsonl
 
 ---
 
-## 8. 汇总结果和画图
+## 10. 汇总结果和画图
 
 ```bash
 bash scripts/05_collect_results.sh
@@ -188,7 +227,7 @@ results/fig_ddd_depth_hist.png
 
 ---
 
-## 9. 推荐报告主线
+## 11. 推荐报告主线
 
 报告里不要只说“我加了 DDD”，而要按下面逻辑写：
 

@@ -1,0 +1,8 @@
+Explain speculative decoding in simple words.
+Write a short introduction to GPU memory hierarchy.
+Why can draft models accelerate large language model inference?
+Give three practical tips for optimizing PyTorch inference.
+Summarize the difference between latency and throughput.
+What is KV cache in transformer inference?
+Explain why batch size affects LLM serving throughput.
+Describe the main idea of EAGLE decoding.

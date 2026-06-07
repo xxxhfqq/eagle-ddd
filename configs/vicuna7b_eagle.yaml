@@ -1,0 +1,21 @@
+# Copy this file to configs/local.yaml and edit paths.
+base_model_path: /workspace/models/vicuna-7b-v1.3
+ea_model_path: /workspace/models/EAGLE-Vicuna-7B-v1.3
+
+# EAGLE inference parameters
+dtype: float16
+device_map: auto
+total_token: 60
+depth: 7
+top_k: 10
+threshold: 1.0
+use_eagle3: false
+
+# Generation parameters
+max_new_tokens: 128
+temperature: 0.0
+
+# DDD parameters
+ddd_max_depth: 11
+ddd_check_depths: [5, 7, 9]
+ddd_thresholds: [-3.0, -2.0, -1.0, 0.0]

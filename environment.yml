@@ -1,0 +1,19 @@
+name: eagle_ddd
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - git
+  - pandas
+  - matplotlib
+  - pyyaml
+  - tqdm
+  - pip:
+      - torch==2.6.0
+      - transformers>=4.53.1
+      - accelerate==0.26.0
+      - fschat==0.2.31
+      - sentencepiece
+      - protobuf

@@ -1,5 +1,3 @@
-configs/local.yaml
-
 # Local model weights (large files, download separately)
 models/
 
